@@ -78,14 +78,20 @@ O volume calculado pela fórmula do tronco de cone com esses valores fica próxi
 - **Sensor:** ultrassônico HC-SR04 (protótipo de bancada) / JSN-SR04T IP67 previsto para a caixa real
 - **Alimentação:** USB 5V
 
-### Ligações (pinos)
+### Esquema de ligação
 
-| Sinal | Pino ESP32 |
-|-------|-----------|
-| TRIG  | GPIO 5    |
-| ECHO  | GPIO 18   |
+![Esquema de ligação ESP32 + HC-SR04](img/esquema-ligacao.png)
 
-> O pino ECHO do HC-SR04 opera em 5V e o GPIO do ESP32 tolera 3,3V — use um divisor de tensão no ECHO (1 kΩ em série + 2 kΩ para o GND). Alternativa: usar o HC-SR04P, que funciona em 3,3V e dispensa o divisor.
+| Pino do HC-SR04 | Liga em (ESP32) | Observação |
+|-----------------|-----------------|------------|
+| VCC  | 5V / VIN | Alimentação do sensor (HC-SR04 é 5V) |
+| TRIG | GPIO 5   | Disparo do pulso ultrassônico |
+| ECHO | GPIO 18  | Através de um divisor de tensão (ver abaixo) |
+| GND  | GND      | Terra comum |
+
+**Divisor de tensão no ECHO:** o pino ECHO do HC-SR04 devolve o pulso em 5V, e o GPIO do ESP32 tolera apenas 3,3V. Para proteger a placa, coloque um resistor de **1 kΩ em série** entre o ECHO e o GPIO 18, e um resistor de **2 kΩ** ligando esse ponto ao GND. Isso reduz os 5V para cerca de 3,3V (`5 × 2/(1+2) = 3,33 V`).
+
+> Alternativa: usar o **HC-SR04P**, versão que funciona em 3,3V. Nesse caso, alimenta-se tudo em 3,3V e o divisor de tensão não é necessário.
 
 ## Instalação e calibração
 
@@ -107,7 +113,7 @@ A partir daí o sensor apenas lê a distância continuamente, e o código usa es
 
 ## Como executar
 
-1. Abra `src/monitor_nivel_serial.ino` na Arduino IDE com o suporte a placas ESP32 instalado.
+1. Abra `monitor_nivel_serial/monitor_nivel_serial.ino` na Arduino IDE com o suporte a placas ESP32 instalado.
 2. Em `FORMATO`, escolha o modo: `CILINDRO`, `CONE` ou `CAPACIDADE`.
 3. Preencha os parâmetros de instalação (`DIST_FUNDO`, `DIST_CHEIO`) e os do modo escolhido.
 4. Compile e envie para o ESP32.
