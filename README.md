@@ -1,12 +1,12 @@
 # Monitor de Nível de Caixa d'Água (IoT)
 
-Sistema IoT para monitoramento em tempo real do nível de água em caixas d'água (ou qualquer reservatório), usando ESP32 e sensor ultrassônico. Nesta etapa, as leituras — altura, percentual e volume — são exibidas no Serial Monitor.
+Sistema IoT para monitoramento em tempo real do nível de água em caixas d'água (ou qualquer reservatório), usando ESP32 e sensor ultrassônico. As leituras (altura, volume e percentual) são exibidas no Serial Monitor, enviadas a um **dashboard remoto (Blynk)** e, quando o nível atinge limiares críticos, disparam um **alerta por SMS (Twilio)**.
 
 > Projeto da disciplina de Internet das Coisas (IoT) — Curso de Sistemas de Informação, IFMA Campus São Luís / Monte Castelo.
 
 ## Problema que resolve
 
-O desperdício de água e o desabastecimento doméstico são problemas comuns: muitas vezes o morador não sabe se a caixa está cheia, pela metade ou prestes a esvaziar, o que leva a falta de água inesperada. Este sistema mede o nível continuamente e disponibiliza a informação, eliminando a verificação manual.
+O desperdício de água e o desabastecimento doméstico são problemas comuns: muitas vezes o morador não sabe se a caixa está cheia, pela metade ou prestes a esvaziar, o que leva a falta de água inesperada. Este sistema mede o nível continuamente, disponibiliza a informação remotamente e avisa o usuário automaticamente, eliminando a verificação manual.
 
 ## Como funciona
 
@@ -17,6 +17,11 @@ O sensor fica no topo do reservatório, apontando para baixo, e mede a **distân
 3. **Percentual** = `volume atual / capacidade × 100`
 
 Importante: o sensor não mede o volume diretamente — ele mede distância, e o microcontrolador converte em altura, percentual e volume.
+
+As três camadas de um sistema IoT estão presentes:
+- **Percepção:** o sensor ultrassônico lê o ambiente.
+- **Processamento:** o ESP32 calcula altura, volume e percentual na própria placa.
+- **Comunicação e aplicação:** os dados vão para o dashboard Blynk e geram alertas por SMS.
 
 ### Tratamento de ruído
 
@@ -46,8 +51,6 @@ Há duas formas de obter as medidas necessárias:
 
 ![Tabela capacidade x dimensões da caixa d'água](img/tabela-dimensoes.png)
 
-> Fonte: catálogo do fabricante da caixa. (Substitua pelo nome do fabricante da imagem que você usou.)
-
 Legenda das dimensões da tabela:
 
 - **A** — altura com tampa
@@ -72,10 +75,25 @@ Pela tabela, a caixa de 1.000 L tem E = 1,16 m, D = 1,51 m e B = 0,76 m. Convert
 
 O volume calculado pela fórmula do tronco de cone com esses valores fica próximo dos 1.000 L nominais. A pequena diferença vem do formato real da caixa (nervuras, base reforçada e a tampa abaulada), que não é um cone geometricamente perfeito — por isso o modo `CONE` é uma boa aproximação, e o modo `CAPACIDADE` (usando direto os litros da tabela) costuma ser suficiente.
 
-## Componentes usados até o momento
+## Visualização e alertas
+
+**Dashboard (Blynk).** A cada 3 segundos o ESP32 envia três valores por pinos virtuais, exibidos no painel do Blynk (web e app):
+- `V1` — altura da água (cm)
+- `V2` — volume (L)
+- `V3` — percentual (%) — fica bem em um widget de medidor radial
+
+**Alertas por SMS (Twilio).** Quando o percentual cruza um limiar, o ESP32 faz uma requisição HTTPS à API do Twilio e envia um SMS:
+- Nível **≤ 20%** → aviso de caixa baixa
+- Nível **≥ 98%** → aviso de caixa cheia
+
+Os alertas disparam **apenas na transição** do limiar (não a cada leitura) e usam histerese, evitando mensagens repetidas e gasto desnecessário de crédito. A constante `SMS_ATIVO` liga/desliga o envio (útil para testar sem enviar SMS).
+
+## Componentes
 
 - **Microcontrolador:** ESP32 (NodeMCU ESP32), com Wi-Fi integrado
 - **Sensor:** ultrassônico HC-SR04 (protótipo de bancada) / JSN-SR04T IP67 previsto para a caixa real
+- **Dashboard:** Blynk IoT (visualização remota)
+- **Alertas:** Twilio (envio de SMS)
 - **Alimentação:** USB 5V
 
 ### Esquema de ligação
@@ -95,7 +113,7 @@ O volume calculado pela fórmula do tronco de cone com esses valores fica próxi
 
 ## Instalação e calibração
 
-Antes de rodar, é preciso descobrir três valores de referência (calibração feita uma única vez):
+Antes de rodar, é preciso descobrir os valores de referência (calibração feita uma única vez):
 
 1. Fixe o sensor no topo do reservatório, apontando reto para baixo, sobre água aberta (longe da boia, do cano de entrada e das paredes).
 2. Com o reservatório **vazio**, observe a distância no Serial Monitor → este valor é o `DIST_FUNDO`.
@@ -113,27 +131,26 @@ A partir daí o sensor apenas lê a distância continuamente, e o código usa es
 
 ## Como executar
 
-1. Abra `monitor_nivel_serial/monitor_nivel_serial.ino` na Arduino IDE com o suporte a placas ESP32 instalado.
-2. Em `FORMATO`, escolha o modo: `CILINDRO`, `CONE` ou `CAPACIDADE`.
-3. Preencha os parâmetros de instalação (`DIST_FUNDO`, `DIST_CHEIO`) e os do modo escolhido.
-4. Compile e envie para o ESP32.
-5. Abra o Serial Monitor a 115200 baud para acompanhar as leituras.
+1. Abra o sketch na Arduino IDE com o suporte a placas ESP32 instalado.
+2. Configure as credenciais no início do código:
+   - **Blynk:** `BLYNK_TEMPLATE_ID` (formato `TMPL...`), `BLYNK_TEMPLATE_NAME` e `BLYNK_AUTH_TOKEN`.
+   - **Wi-Fi:** `ssid` e `pass` (rede 2,4 GHz).
+   - **Twilio:** `ACCOUNT_SID`, `AUTH_TOKEN`, `NUMERO_TWILIO` (remetente, EUA) e `NUMERO_DESTINO` (seu número verificado).
+3. No Blynk, crie os datastreams `V1` (altura), `V2` (volume) e `V3` (percentual), todos do tipo Double.
+4. Em `FORMATO`, escolha o modo e preencha os parâmetros de instalação e dimensões.
+5. Compile, envie para o ESP32 e abra o Serial Monitor a 115200 baud.
+
+> **Segurança:** nunca faça commit dos tokens reais (Blynk, Twilio) nem da senha do Wi-Fi. Antes de subir ao GitHub, substitua-os por placeholders. O Auth Token do Twilio funciona como uma senha da conta.
 
 ## Status atual — o que já funciona
 
 - [x] Leitura da distância pelo sensor ultrassônico
-- [x] Descarte de leituras inválidas
-- [x] Média de 15 amostras por ciclo para reduzir ruído
+- [x] Descarte de leituras inválidas e média de 15 amostras por ciclo
 - [x] Cálculo de altura, percentual e volume
 - [x] Três modos de cálculo de volume (cilindro, cone, capacidade)
 - [x] Exibição das leituras no Serial Monitor
-
-## O que ainda falta implementar
-
-- [ ] Dashboard para visualização remota (Blynk / Home Assistant)
-- [ ] Alertas de nível crítico (abaixo de 20% e caixa cheia) por e-mail ou Telegram
-- [ ] Migração da comunicação para MQTT (conforme proposta)
-- [ ] Registro de histórico de leituras para análise de consumo
+- [x] Dashboard remoto no Blynk (altura, volume e percentual em tempo real)
+- [x] Alertas por SMS via Twilio (nível baixo e cheio), com disparo por transição e histerese
 
 ## Autor
 
