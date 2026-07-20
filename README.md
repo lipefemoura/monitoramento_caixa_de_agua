@@ -83,7 +83,7 @@ O volume calculado pela fórmula do tronco de cone com esses valores fica próxi
 - `V3` — percentual (%) — fica bem em um widget de medidor radial
 
 **Alertas por SMS (Twilio).** Quando o percentual cruza um limiar, o ESP32 faz uma requisição HTTPS à API do Twilio e envia um SMS:
-- Nível **≤ 20%** → aviso de caixa baixa
+- Nível **≤ 30%** → aviso de caixa baixa
 - Nível **≥ 98%** → aviso de caixa cheia
 
 Os alertas disparam **apenas na transição** do limiar (não a cada leitura) e usam histerese, evitando mensagens repetidas e gasto desnecessário de crédito. A constante `SMS_ATIVO` liga/desliga o envio (útil para testar sem enviar SMS).
@@ -147,8 +147,6 @@ A partir daí o sensor apenas lê a distância continuamente, e o código usa es
 - [x] Leitura da distância pelo sensor ultrassônico
 - [x] Descarte de leituras inválidas e média de 15 amostras por ciclo
 - [x] Cálculo de altura, percentual e volume
-- [x] Três modos de cálculo de volume (cilindro, cone, capacidade)
-- [x] Exibição das leituras no Serial Monitor
 - [x] Dashboard remoto no Blynk (altura, volume e percentual em tempo real)
 - [x] Alertas por SMS via Twilio (nível baixo e cheio), com disparo por transição e histerese
 
